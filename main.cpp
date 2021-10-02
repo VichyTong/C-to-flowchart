@@ -105,14 +105,101 @@ bool isend(char ch){
 }
 void trans_id_or_key(string str){
 	TokenType tmp;
-	if(str=="int"){
-		tmp=INT;
+	if(str=="auto"){
+		tmp=AUTO;
+	}
+	else if(str=="break"){
+		tmp=BREAK;
+	}
+	else if(str=="case"){
+		tmp=CASE;
+	}
+	else if(str=="char"){
+		tmp=CHAR;
+	}
+	else if(str=="const"){
+		tmp=CONST;
+	}
+	else if(str=="continue"){
+		tmp=CONTINUE;
+	}
+	else if(str=="defalt"){
+		tmp=DEFALT;
+	}
+	else if(str=="do"){
+		tmp=DO;
+	}
+	else if(str=="double"){
+		tmp=DOUBLE;
+	}
+	else if(str=="else"){
+		tmp=ELSE;
+	}
+	else if(str=="enum"){
+		tmp=ENUM;
+	}
+	else if(str=="extern"){
+		tmp=EXTERN;
+	}
+	else if(str=="float"){
+		tmp=FLOAT;
 	}
 	else if(str=="for"){
 		tmp=FOR;
 	}
+	else if(str=="goto"){
+		tmp=GOTO;
+	}
+	else if(str=="if"){
+		tmp=IF;
+	}
+	else if(str=="int"){
+		tmp=INT;
+	}
+	else if(str=="long"){
+		tmp=LONG;
+	}
+	else if(str=="register"){
+		tmp=REGISTER;
+	}
 	else if(str=="return"){
 		tmp=RETURN;
+	}
+	else if(str=="short"){
+		tmp=SHORT;
+	}
+	else if(str=="signed"){
+		tmp=SIGNED;
+	}
+	else if(str=="sizeof"){
+		tmp=SIZEOF;
+	}
+	else if(str=="static"){
+		tmp=STATIC;
+	}
+	else if(str=="struct"){
+		tmp=STRUCT;
+	}
+	else if(str=="switch"){
+		tmp=SWITCH;
+	}
+	else if(str=="typedef"){
+		tmp=TYPEDEF;
+	}
+	else if(str=="union"){
+		tmp=UNION;
+	}
+	else if(str=="unsigned"){
+		tmp=UNSIGNED;
+	}
+	else if(str=="void"){
+		tmp=VOID;
+	}
+	else if(str=="volatile"){
+		tmp=VOLATILE;
+	}
+	else if(str=="while"){
+		tmp=WHILE;
 	}
 	else{
 		tmp=ID;
@@ -126,11 +213,104 @@ void trans_num(string str){
 }
 void trans_opr(string str){
 	TokenType tmp;
-	if(str=="("){
+	if(str=="+"){
+		tmp=PLUS;
+	}
+	else if(str=="-"){
+		tmp=MINUS;
+	}
+	else if(str=="*"){
+		tmp=STAR;
+	}
+	else if(str=="/"){
+		tmp=DIV;
+	}
+	else if(str=="%"){
+		tmp=MOD;
+	}
+	else if(str=="++"){
+		tmp=BIPLUS;
+	}
+	else if(str=="--"){
+		tmp=BIMINUS;
+	}
+	else if(str=="=="){
+		tmp=DO_EQL;
+	}
+	else if(str=="!="){
+		tmp=NOT_EQL;
+	}
+	else if(str==">"){
+		tmp=GREATER;
+	}
+	else if(str=="<"){
+		tmp=LESS;
+	}
+	else if(str==">="){
+		tmp=GREATER_EQL;
+	}
+	else if(str=="<="){
+		tmp=LESS_EQL;
+	}
+	else if(str=="&&"){
+		tmp=LGC_AND;
+	}
+	else if(str=="||"){
+		tmp=LGC_OR;
+	}
+	else if(str=="!"){
+		tmp=LGC_NOT;
+	}
+	else if(str=="&"){
+		tmp=AND;
+	}
+	else if(str=="|"){
+		tmp=OR;
+	}
+	else if(str=="^"){
+		tmp=XOR;
+	}
+	else if(str=="<<"){
+		tmp=LSHIFT;
+	}
+	else if(str==">>"){
+		tmp=RSHIFT;
+	}
+	else if(str=="="){
+		tmp=ASSIGN;
+	}
+	else if(str=="+="){
+		tmp=ASSIGN_PLUS;
+	}
+	else if(str=="-="){
+		tmp=ASSIGN_MINUS;
+	}
+	else if(str=="*="){
+		tmp=ASSIGN_STAR;
+	}
+	else if(str=="/="){
+		tmp=ASSIGN_DIV;
+	}
+	else if(str=="%="){
+		tmp=ASSIGN_MOD;
+	}
+	else if(str==","){
+		tmp=COMMA;
+	}
+	else if(str==";"){
+		tmp=SEMI;
+	}
+	else if(str=="("){
 		tmp=LP;
 	}
 	else if(str==")"){
 		tmp=RP;
+	}
+	else if(str=="["){
+		tmp=LS;
+	}
+	else if(str=="]"){
+		tmp=RS;
 	}
 	else if(str=="{"){
 		tmp=LC;
@@ -138,28 +318,60 @@ void trans_opr(string str){
 	else if(str=="}"){
 		tmp=RC;
 	}
-	else if(str=="="){
-		tmp=ASSIGN;
+	else if(str=="\""){
+		tmp=QUOT;
 	}
-	else if(str==";"){
-		tmp=SEMI;
+	else if(str=="//"){
+		tmp=NOTE;
 	}
-	else if(str=="<"){
-		tmp=LESS;
+	else if(str=="/*"){
+		tmp=LNOTE;
 	}
-	else if(str=="+"){
-		tmp=PLUS;
+	else if(str=="*/"){
+		tmp=RNOTE;
+	}
+	else if(str=="#"){
+		tmp=HASH;
+	}
+	else if(str==" "){
+		tmp=SPACE;
 	}
 	data.push_back(tmp);
 }
 void scanner(){
 	char ch;
 	string str;
-	int sta=0;
+	int sta=0,note=0;
+//  sta=0 first is null
 //	sta=1 first is number
 //	sta=2 first is letter
 //	sta=3 first is operator
+//  note=0 not note
+//  note=1 in // note
+//  note=2 in /* note & NOT detected '*'
+//  note=3 in /* note & detected '*'
 	while((ch=getchar())!=EOF){
+		if(note==1){
+			if(ch=='\n'){
+				note=0;
+			}
+			continue;
+		}
+		else if(note==2){
+			if(ch=='*'){
+				note=3;
+			}
+			continue;
+		}
+		else if(note==3){
+			if(ch=='/'){
+				note=0;
+			}
+			else{
+				note=2;
+			}
+			continue;
+		}
 		switch (sta){
 			case 0:{
 				if(isnumber(ch)){
@@ -244,92 +456,117 @@ void scanner(){
 							TokenType tmp;
 							tmp=DO_EQL;
 							data.push_back(tmp);
+							str.clear();
+							sta=0;
 						}
 						else if(str=="!"){
 							TokenType tmp;
 							tmp=NOT_EQL;
 							data.push_back(tmp);
+							str.clear();
+							sta=0;
 						}
 						else if(str==">"){
 							TokenType tmp;
 							tmp=GREATER_EQL;
 							data.push_back(tmp);
+							str.clear();
+							sta=0;
 						}
 						else if(str=="<"){
 							TokenType tmp;
 							tmp=LESS_EQL;
 							data.push_back(tmp);
+							str.clear();
+							sta=0;
 						}
 						else if(str=="+"){
 							TokenType tmp;
 							tmp=ASSIGN_PLUS;
 							data.push_back(tmp);
+							str.clear();
+							sta=0;
 						}
 						else if(str=="-"){
 							TokenType tmp;
 							tmp=ASSIGN_MINUS;
 							data.push_back(tmp);
+							str.clear();
+							sta=0;
 						}
 						else if(str=="*"){
 							TokenType tmp;
 							tmp=ASSIGN_STAR;
 							data.push_back(tmp);
+							str.clear();
+							sta=0;
 						}
 						else if(str=="/"){
 							TokenType tmp;
 							tmp=ASSIGN_DIV;
 							data.push_back(tmp);
+							str.clear();
+							sta=0;
 						}
 						else if(str=="%"){
 							TokenType tmp;
 							tmp=ASSIGN_MOD;
 							data.push_back(tmp);
+							str.clear();
+							sta=0;
 						}
 					}
 					else if(ch=='&' && str=="&"){
 						TokenType tmp;
 						tmp=LGC_AND;
 						data.push_back(tmp);
+						str.clear();
+						sta=0;
 					}
 					else if(ch=='|' && str=="|"){
 						TokenType tmp;
 						tmp=LGC_OR;
 						data.push_back(tmp);
+						str.clear();
+						sta=0;
 					}
 					else if(ch=='<' && str=="<"){
 						TokenType tmp;
 						tmp=LSHIFT;
 						data.push_back(tmp);
+						str.clear();
+						sta=0;
 					}
 					else if(ch=='>' && str==">"){
 						TokenType tmp;
 						tmp=RSHIFT;
 						data.push_back(tmp);
+						str.clear();
+						sta=0;
 					}
 					else if(ch=='+' && str=="+"){
 						TokenType tmp;
 						tmp=BIPLUS;
 						data.push_back(tmp);
+						str.clear();
+						sta=0;
 					}
 					else if(ch=='-' && str=="-"){
 						TokenType tmp;
 						tmp=BIMINUS;
 						data.push_back(tmp);
-					}
-					else if(ch=='*' && str=="/"){
-						TokenType tmp;
-						tmp=LNOTE;
-						data.push_back(tmp);
+						str.clear();
+						sta=0;
 					}
 					else if(ch=='/' && str=="*"){
-						TokenType tmp;
-						tmp=RNOTE;
-						data.push_back(tmp);
+						note=2;
+						str.clear();
+						sta=0;
 					}
 					else if(ch=='/' && str=="/"){
-						TokenType tmp;
-						tmp=NOTE;
-						data.push_back(tmp);
+						note=1;
+						str.clear();
+						sta=0;
 					}
 					else{
 						trans_opr(str);
@@ -338,7 +575,7 @@ void scanner(){
 					}
 				}
 				else{
-					printf("ERROR2\n");
+					printf("ERROR3\n");
 				}
 				break;
 			}
@@ -346,12 +583,91 @@ void scanner(){
 	}
 }
 
-
+string a[100];
 int main(){
 	freopen("test.in", "r", stdin);
 	scanner();
+	a[1]="AUTO";
+	a[2]="BREAK";
+	a[3]="CASE";
+	a[4]="CHAR";
+	a[5]="CONST";
+	a[6]="CONTINUE";
+	a[7]="DEFALT";
+	a[8]="DO";
+	a[9]="DOUBLE";
+	a[10]="ELSE";
+	a[11]="ENUM";
+	a[12]="EXTERN";
+	a[13]="FLOAT";
+	a[14]="FOR";
+	a[15]="GOTO";
+	a[16]="IF";
+	a[17]="INT";
+	a[18]="LONG";
+	a[19]="REGISTER";
+	a[20]="RETURN";
+	a[21]="SHORT";
+	a[22]="SIGNED";
+	a[23]="SIZEOF";
+	a[24]="STATIC";
+	a[25]="STRUCT";
+	a[26]="SWITCH";
+	a[27]="TYPEDEF";
+	a[28]="UNION";
+	a[29]="UNSIGNED";
+	a[30]="VOID";
+	a[31]="VOLATILE";
+	a[32]="WHILE";
+	a[33]="PLUS";
+	a[34]="MINUS";
+	a[35]="STAR";
+	a[36]="DIV";
+	a[37]="MOD";
+	a[38]="BIPLUS";
+	a[39]="BIMINUS";
+	a[40]="DO_EQL";
+	a[41]="NOT_EQL";
+	a[42]="GREATER";
+	a[43]="LESS";
+	a[44]="GREATER_EQL";
+	a[45]="LESS_EQL";
+	a[46]="LGC_AND";
+	a[47]="LGC_OR";
+	a[48]="LGC_NOT";
+	a[49]="AND";
+	a[50]="OR";
+	a[51]="XOR";
+	a[52]="LSHIFT";
+	a[53]="RSHIFT";
+	a[54]="ASSIGN";
+	a[55]="ASSIGN_PLUS";
+	a[56]="ASSIGN_MINUS";
+	a[57]="ASSIGN_STAR";
+	a[58]="ASSIGN_DIV";
+	a[59]="ASSIGN_MOD";
+	a[60]="COMMA";
+	a[61]="SEMI";
+	a[62]="LP";
+	a[63]="RP";
+	a[64]="LS";
+	a[65]="RS";
+	a[66]="LC";
+	a[67]="RC";
+	a[68]="QUOT";
+	a[69]="NOTE";
+	a[70]="LNOTE";
+	a[71]="RNOTE";
+	a[72]="HASH";
+	a[73]="ID";
+	a[74]="SPACE";
+	a[75]="SCANF";
+	a[76]="PRINTF";
+	a[77]="GETCHAR";
+	a[78]="NUM";
 	for(int i=0; i<data.size(); i++){
-		printf("%d\n", data[i]+1);
+		printf("%d ", data[i]+1);
+		cout << a[data[i]+1] << endl;
 	}
 	return 0;
 }
