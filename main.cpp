@@ -3,8 +3,11 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <stack>
+#include <map>
 using namespace std;
 vector <int> data; 
+map <int, string> id_data;
 enum TokenType{
 	//keywords
 	AUTO,
@@ -102,6 +105,9 @@ bool isoperator(char ch){
 }
 bool isend(char ch){
 	return (ch=='\n' || ch==' ');
+}
+bool istype(int a){
+	return (a==INT || a==CHAR || a==DOUBLE || a==FLOAT || a==LONG || a==SHORT);
 }
 void trans_id_or_key(string str){
 	TokenType tmp;
@@ -203,6 +209,7 @@ void trans_id_or_key(string str){
 	}
 	else{
 		tmp=ID;
+		id_data[data.size()+1]=str;
 	}
 	data.push_back(tmp);
 }
@@ -582,7 +589,80 @@ void scanner(){
 		}
 	}
 }
-
+map <int, int> link;
+void match(){
+	stack <int> s_p;
+	stack <int> s_s;
+	stack <int> s_c;
+	for(int i=0; i<data.size(); i++){
+		switch (data[i]){
+			case LP:{
+				s_p.push(i);
+				break;
+			}
+			case RP:{
+				if(!s_p.empty()){
+					link[s_p.top()]=i;
+					s_p.pop();
+				}
+				break;
+			}
+			case LS:{
+				s_s.push(i);
+				break;
+			}
+			case RS:{
+				if(!s_s.empty()){
+					link[s_s.top()]=i;
+					s_s.pop();
+				}
+				break;
+			}
+			case LC:{
+				s_c.push(i);
+				break;
+			}
+			case RC:{
+				if(!s_c.empty()){
+					link[s_c.top()]=i;
+					s_c.pop();
+				}
+				break;
+			}
+		}
+	}
+}
+struct node{
+	vector <int> son;
+	
+}
+void typemanage(int begin){
+	int now=begin+2;
+	int root=0;
+	queue<int> q;
+	if(data[now]==COMMA){
+		q.push(now-1);
+		now++;
+		while(data[now+1]==COMMA){
+			q.push(now);
+			now+=2;
+		}
+		add_edge(root, )
+	}
+	else if(data[now]==LP){
+		funcmanage(now, link[now]);
+	}
+}
+void divfunc(){
+	for(int i=0; i<data.size(); i++){
+		if(istype(data[i])){
+			
+		}
+		else if(data[i]==VOID){
+			
+		}
+	}
+}
 string a[100];
 int main(){
 	freopen("test.in", "r", stdin);
@@ -669,5 +749,6 @@ int main(){
 		printf("%d ", data[i]+1);
 		cout << a[data[i]+1] << endl;
 	}
+	match();
 	return 0;
 }
