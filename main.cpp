@@ -3,8 +3,13 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <stack>
+#include <map>
 using namespace std;
 vector <int> data; 
+map <int, string> id_data;
+map <int, string> num_data;
+string a[100];
 enum TokenType{
 	//keywords
 	AUTO,
@@ -88,7 +93,9 @@ enum TokenType{
 	PRINTF,
 	GETCHAR,
 	// number
-	NUM
+	NUM,
+	// tmp
+	RDIV
 };
 
 bool isnumber(char ch){
@@ -98,10 +105,13 @@ bool isletter(char ch){
 	return ((ch>='a' && ch<='z') || (ch>='A' && ch<='Z') || ch=='_');
 }
 bool isoperator(char ch){
-	return (ch=='+' || ch=='-' || ch=='*' || ch=='/' || ch=='%' || ch=='=' || ch=='!' || ch=='>' || ch=='<' || ch=='&' || ch=='|' || ch=='^' || ch==',' || ch==';' || ch=='{' || ch=='}' || ch=='(' || ch==')' || ch=='[' || ch==']' || ch=='"' || ch=='/');
+	return (ch=='+' || ch=='-' || ch=='*' || ch=='/' || ch=='%' || ch=='=' || ch=='!' || ch=='>' || ch=='<' || ch=='&' || ch=='|' || ch=='^' || ch==',' || ch==';' || ch=='{' || ch=='}' || ch=='(' || ch==')' || ch=='[' || ch==']' || ch=='"' || ch=='/' || ch=='\\');
 }
 bool isend(char ch){
 	return (ch=='\n' || ch==' ');
+}
+bool istype(int a){
+	return (a==INT || a==CHAR || a==DOUBLE || a==FLOAT || a==LONG || a==SHORT);
 }
 void trans_id_or_key(string str){
 	TokenType tmp;
@@ -203,6 +213,7 @@ void trans_id_or_key(string str){
 	}
 	else{
 		tmp=ID;
+		id_data[data.size()+1]=str;
 	}
 	data.push_back(tmp);
 }
@@ -210,6 +221,7 @@ void trans_num(string str){
 	TokenType tmp;
 	tmp=NUM;
 	data.push_back(tmp);
+	num_data[data.size()]=str;
 }
 void trans_opr(string str){
 	TokenType tmp;
@@ -335,6 +347,9 @@ void trans_opr(string str){
 	}
 	else if(str==" "){
 		tmp=SPACE;
+	}
+	else if(str=="\\"){
+		tmp=RDIV;
 	}
 	data.push_back(tmp);
 }
@@ -582,8 +597,249 @@ void scanner(){
 		}
 	}
 }
-
-string a[100];
+map <int, int> link;
+void match(){
+	stack <int> s_p;
+	stack <int> s_s;
+	stack <int> s_c;
+	for(int i=0; i<data.size(); i++){
+		switch (data[i]){
+			case LP:{
+				s_p.push(i);
+				break;
+			}
+			case RP:{
+				if(!s_p.empty()){
+					link[s_p.top()]=i;
+					s_p.pop();
+				}
+				break;
+			}
+			case LS:{
+				s_s.push(i);
+				break;
+			}
+			case RS:{
+				if(!s_s.empty()){
+					link[s_s.top()]=i;
+					s_s.pop();
+				}
+				break;
+			}
+			case LC:{
+				s_c.push(i);
+				break;
+			}
+			case RC:{
+				if(!s_c.empty()){
+					link[s_c.top()]=i;
+					s_c.pop();
+				}
+				break;
+			}
+		}
+	}
+}
+enum nodetype{
+	ROOT,
+	FUNCTION,
+	COMMON,
+	JUDGE,
+	COMPLEX,
+	INPUT,
+	OUTPUT,
+	NODETYPE_FOR,
+	NODETYPE_WHILE,
+	NODETYPE_IF,
+	NODETYPE_ELSE
+};
+struct node{
+	int type;
+	int l,r;
+	int id_index;
+	vector<int> son;
+};
+vector <node> AST;
+void addedge(int u,int v){
+	AST[u].son.push_back(v);
+}
+int build(int l, int r){
+	int now=l;
+	if(data[now]==LC){
+		node r_complex;
+		int nl=now+1, nr=link[now]-1;
+		r_complex.type=COMPLEX;
+		r_complex.l=now;
+		r_complex.r=nr+1;
+		AST.push_back(r_complex);
+		int r_index=AST.size()-1;
+		while(nl<=nr){
+			int body_index=build(nl, nr);
+			addedge(r_index, body_index);
+			nl=AST[body_index].r+1;
+		}
+		return r_index;
+	}
+	else if(data[now]==FOR){
+		node r_for,pre,jud,lst;
+		int Lp=now+1,Rp=link[Lp];
+		int semi1=now+2,semi2=now+2;
+		while(data[semi1]!=SEMI){
+			semi1++;
+		}
+		semi2=semi1+1;
+		while(data[semi2]!=SEMI){
+			semi2++;
+		}
+		pre.type=COMMON;
+		pre.l=Lp+1;
+		pre.r=semi1-1;
+		jud.type=JUDGE;
+		jud.l=semi1+1;
+		jud.r=semi2-1;
+		lst.type=COMMON;
+		lst.l=semi2+1;
+		lst.r=Rp-1;
+		r_for.type=NODETYPE_FOR;
+		r_for.l=now;
+		AST.push_back(r_for);
+		int r_for_index=AST.size()-1;
+		int body_index=build(Rp+1, r);
+		AST[r_for_index].r=AST[body_index].r;
+		if(Lp+1<=semi1-1){
+			AST.push_back(pre);
+			addedge(r_for_index, AST.size()-1);
+		}
+		if(semi1+1<=semi2-1){
+			AST.push_back(jud);
+			addedge(r_for_index, AST.size()-1);
+		}
+		addedge(r_for_index, body_index);
+		if(semi2+1<=Rp-1){
+			AST.push_back(lst);
+			addedge(r_for_index, AST.size()-1);
+		}
+		return r_for_index;
+	}
+	else if(data[now]==WHILE){
+		node r_while, jud;
+		int Rp=link[now+1];
+		jud.type=JUDGE;
+		jud.l=now+2;
+		jud.r=Rp-1;
+		r_while.type=NODETYPE_WHILE;
+		r_while.l=now;
+		AST.push_back(r_while);
+		int r_while_index=AST.size()-1;
+		int body_index=build(Rp+1, r);
+		AST[r_while_index].r=AST[body_index].r;
+		if(now+1<=Rp-1){
+			AST.push_back(jud);
+			addedge(r_while_index, AST.size()-1);
+		}
+		addedge(r_while_index, body_index);
+		return r_while_index;
+	}
+	else if(data[now]==IF){
+		node r_if, jud;
+		int Rp=link[now+1];
+		jud.type=JUDGE;
+		jud.l=now+2;
+		jud.r=Rp-1;
+		r_if.type=NODETYPE_IF;
+		r_if.l=now;
+		AST.push_back(r_if);
+		int r_if_index=AST.size()-1;
+		int body_index=build(Rp+1, r);
+		AST[r_if_index].r=AST[body_index].r;
+		if(now+1<=Rp-1){
+			AST.push_back(jud);
+			addedge(r_if_index, AST.size()-1);
+		}
+		addedge(r_if_index, body_index);
+		int nxt=AST[r_if_index].r+1;
+		if(data[nxt]==ELSE){
+			int else_body_index=build(nxt+1, r);
+			addedge(r_if_index, else_body_index);
+			AST[r_if_index].r=AST[else_body_index].r;
+		}
+		return r_if_index;
+	}
+	else{
+		while(data[now]!=SEMI && now<=r){
+			now++;
+		}
+		node command;
+		command.type=COMMON;
+		command.l=l;
+		command.r=now;
+		AST.push_back(command);
+		return AST.size()-1;
+	}
+}
+void init(){
+	node root;
+	root.type=ROOT;
+	root.l=0;
+	root.r=data.size()-1;
+	AST.push_back(root);
+	for(int i=0; i<data.size(); i++){
+		if(istype(data[i])){
+			if(data[i+2]!=LP){
+				int r=i+2;
+				while(data[r]!=SEMI){
+					r++;
+				}
+				int body_index=build(i, r);
+				addedge(0, body_index);
+				i=r;
+			}
+			else{
+				if(data[link[i+2]+1]==SEMI){
+					int body_index=build(i, link[i+2]+1);
+					addedge(0, body_index);
+					i=link[i+2]+1;
+				}
+				else{
+					node fun;
+					fun.type=FUNCTION;
+					fun.l=i;
+					AST.push_back(fun);
+					int fun_index=AST.size()-1;
+					addedge(0, fun_index);
+					int body_index=build(link[i+2]+1, data.size()-1);
+					AST[fun_index].r=AST[body_index].r;
+					addedge(fun_index, body_index);
+					i=AST[fun_index].r;
+				}
+			}
+		}
+		else if(data[i]==VOID){
+			node fun;
+			fun.type=FUNCTION;
+			fun.l=i;
+			AST.push_back(fun);
+			int fun_index=AST.size()-1;
+			addedge(0, fun_index);
+			int body_index=build(link[i+2]+1, data.size()-1);
+			AST[fun_index].r=AST[body_index].r;
+			addedge(fun_index, body_index);
+			i=AST[fun_index].r;
+		}
+	}
+}
+void dfs(int now){
+	if(AST[now].son.empty()){
+		printf("CNT=%d TYPE=%d L=%d R=%d\n",now, AST[now].type, AST[now].l, AST[now].r);
+		return;
+	}
+	else{
+		for(int i=0; i<AST[now].son.size(); i++){
+			dfs(AST[now].son[i]);
+		}
+		printf("CNT=%d TYPE=%d L=%d R=%d\n",now, AST[now].type, AST[now].l, AST[now].r);
+	}
+}
 int main(){
 	freopen("test.in", "r", stdin);
 	scanner();
@@ -665,9 +921,21 @@ int main(){
 	a[76]="PRINTF";
 	a[77]="GETCHAR";
 	a[78]="NUM";
+	a[79]="RDIV";
 	for(int i=0; i<data.size(); i++){
-		printf("%d ", data[i]+1);
+		printf("%d %d ", i, data[i]+1);
 		cout << a[data[i]+1] << endl;
 	}
+	match();
+	init();
+//	for(int i=0; i<AST.size(); i++){
+//		printf("CNT=%d TYPE=%d L=%d R=%d\n", i, AST[i].type, AST[i].l, AST[i].r);
+//		printf("Sons:");
+//		for(int j=0; j<AST[i].son.size(); j++){
+//			printf("%d ",AST[i].son[j]);
+//		}
+//		printf("\n");
+//	}
+	dfs(0);
 	return 0;
 }
