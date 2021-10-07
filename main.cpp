@@ -95,7 +95,9 @@ enum TokenType{
 	// number
 	NUM,
 	// tmp
-	RDIV
+	RDIV,
+	DOT,
+	PUNCTUAL
 };
 
 bool isnumber(char ch){
@@ -105,7 +107,7 @@ bool isletter(char ch){
 	return ((ch>='a' && ch<='z') || (ch>='A' && ch<='Z') || ch=='_');
 }
 bool isoperator(char ch){
-	return (ch=='+' || ch=='-' || ch=='*' || ch=='/' || ch=='%' || ch=='=' || ch=='!' || ch=='>' || ch=='<' || ch=='&' || ch=='|' || ch=='^' || ch==',' || ch==';' || ch=='{' || ch=='}' || ch=='(' || ch==')' || ch=='[' || ch==']' || ch=='"' || ch=='/' || ch=='\\');
+	return (ch=='+' || ch=='-' || ch=='*' || ch=='/' || ch=='%' || ch=='=' || ch=='!' || ch=='>' || ch=='<' || ch=='&' || ch=='|' || ch=='^' || ch==',' || ch==';' || ch=='{' || ch=='}' || ch=='(' || ch==')' || ch=='[' || ch==']' || ch=='"' || ch=='/' || ch=='\\' || ch=='.' || ch=='\'');
 }
 bool isend(char ch){
 	return (ch=='\n' || ch==' ');
@@ -213,15 +215,15 @@ void trans_id_or_key(string str){
 	}
 	else{
 		tmp=ID;
-		id_data[data.size()+1]=str;
+		id_data[data.size()]=str;
 	}
 	data.push_back(tmp);
 }
 void trans_num(string str){
 	TokenType tmp;
 	tmp=NUM;
-	data.push_back(tmp);
 	num_data[data.size()]=str;
+	data.push_back(tmp);
 }
 void trans_opr(string str){
 	TokenType tmp;
@@ -351,6 +353,12 @@ void trans_opr(string str){
 	else if(str=="\\"){
 		tmp=RDIV;
 	}
+	else if(str=="."){
+		tmp=DOT;
+	}
+	else if(str=="\'"){
+		tmp=PUNCTUAL;
+	}
 	data.push_back(tmp);
 }
 void scanner(){
@@ -389,7 +397,13 @@ void scanner(){
 		}
 		switch (sta){
 			case 0:{
-				if(isnumber(ch)){
+				if(ch=='#'){
+					while(ch!='\n'){
+						ch=getchar();
+					}
+					sta=0;
+				}
+				else if(isnumber(ch)){
 					str+=ch;
 					sta=1;
 				}
@@ -530,6 +544,11 @@ void scanner(){
 							str.clear();
 							sta=0;
 						}
+						else{
+							trans_opr(str);
+							sta=3;
+							str=ch;
+						}
 					}
 					else if(ch=='&' && str=="&"){
 						TokenType tmp;
@@ -651,7 +670,6 @@ enum nodetype{
 	NODETYPE_FOR,
 	NODETYPE_WHILE,
 	NODETYPE_IF,
-	NODETYPE_ELSE
 };
 struct node{
 	int type;
@@ -765,6 +783,28 @@ int build(int l, int r){
 		}
 		return r_if_index;
 	}
+	else if(data[now]==SCANF){
+		while(data[now]!=SEMI && now<=r){
+			now++;
+		}
+		node command;
+		command.type=INPUT;
+		command.l=l;
+		command.r=now;
+		AST.push_back(command);
+		return AST.size()-1;
+	}
+	else if(data[now]==PRINTF){
+		while(data[now]!=SEMI && now<=r){
+			now++;
+		}
+		node command;
+		command.type=OUTPUT;
+		command.l=l;
+		command.r=now;
+		AST.push_back(command);
+		return AST.size()-1;
+	}
 	else{
 		while(data[now]!=SEMI && now<=r){
 			now++;
@@ -828,104 +868,266 @@ void init(){
 		}
 	}
 }
-void dfs(int now){
-	if(AST[now].son.empty()){
-		printf("CNT=%d TYPE=%d L=%d R=%d\n",now, AST[now].type, AST[now].l, AST[now].r);
-		return;
+map<int, int> lst;
+int debug_if_tmp=0;
+void printedge(int index_a, int index_b, int sta){
+	if(sta>0){
+		printf("%d -> %d [label=\"Y\"];\n",index_a, index_b);
+	}
+	else if(sta<0){
+		printf("%d -> %d [label=\"N\"];\n",index_a, index_b);
 	}
 	else{
-		for(int i=0; i<AST[now].son.size(); i++){
-			dfs(AST[now].son[i]);
+		printf("%d -> %d;\n",index_a, index_b);
+	}
+	if(debug_if_tmp){
+		index_a=debug_if_tmp;
+			if(sta>0){
+			printf("%d -> %d [label=\"Y\"];\n",index_a, index_b);
 		}
-		printf("CNT=%d TYPE=%d L=%d R=%d\n",now, AST[now].type, AST[now].l, AST[now].r);
+		else if(sta<0){
+			printf("%d -> %d [label=\"N\"];\n",index_a, index_b);
+		}
+		else{
+			printf("%d -> %d;\n",index_a, index_b);
+		}
+		debug_if_tmp=0;
+	}
+}
+void dfs(int last, int now, int sta){
+	int type=AST[now].type;
+	if(type==NODETYPE_FOR){
+		printedge(last, AST[now].son[0], sta);
+		printedge(AST[now].son[0], AST[now].son[1], 0);
+		dfs(AST[now].son[1], AST[now].son[2], 1);
+		printedge(lst[AST[now].son[2]], AST[now].son[3], (AST[lst[AST[now].son[2]]].type==JUDGE)?-1:0);
+		printedge(AST[now].son[3], AST[now].son[1], 0);
+		lst[now]=AST[now].son[1];
+	}
+	else if(type==NODETYPE_WHILE){
+		printedge(last, AST[now].son[0], sta);
+		dfs(AST[now].son[0], AST[now].son[1], 1);
+		printedge(lst[AST[now].son[1]], AST[now].son[0], 0);
+		lst[now]=AST[now].son[0];
+	}
+	else if(type==NODETYPE_IF){
+		printedge(last, AST[now].son[0], sta);
+		dfs(AST[now].son[0], AST[now].son[1], 1);
+		if(AST[now].son.size()==3){
+			dfs(AST[now].son[0], AST[now].son[2], -1);
+		}
+		lst[now]=lst[AST[now].son[1]];
+	}
+	else if(type==COMPLEX){
+		int siz=AST[now].son.size();
+		int pre=last, nowsta=sta;
+		for(int i=0; i<siz; i++){
+			dfs(pre, AST[now].son[i], nowsta);
+			int typ=AST[AST[now].son[i]].type;
+			if(typ==NODETYPE_FOR || typ==NODETYPE_WHILE){
+				pre=lst[AST[now].son[i]];
+				nowsta=-1;
+			}
+			else if(typ==NODETYPE_IF){
+				if(AST[AST[now].son[i]].son.size()==3){
+					pre=lst[AST[now].son[i]];
+					nowsta=0;
+					debug_if_tmp=lst[AST[AST[now].son[i]].son[2]];
+				}
+				else{
+					pre=lst[AST[now].son[i]];
+					nowsta=-1;
+				}
+			}
+			else{
+				pre=lst[AST[now].son[i]];
+				nowsta=0;
+			}
+		}
+		lst[now]=lst[AST[now].son[siz-1]];
+	}
+	else if(type==FUNCTION){
+		printedge(last, now, sta);
+		dfs(now, AST[now].son[0], 0);
+	}
+	else if(type==JUDGE){
+		printf("DFSERROR\n");
+	}
+	else if(type==COMMON || type==INPUT || type==OUTPUT){
+		if(last!=now){
+			printedge(last, now, sta);
+		}
+		lst[now]=now;
+	}
+	else if(type==ROOT){
+		int siz=AST[now].son.size();
+		for(int i=0; i<siz; i++){
+			dfs(0, AST[now].son[i], 0);
+		}
+	}
+}
+
+void printname(){
+	for(int i=0; i<AST.size(); i++){
+		if(AST[i].type==COMMON){
+			printf("%d [shape=box, label=\"");
+			for(int j=AST[i].l; j<=AST[i].r; j++){
+				if(data[j]==NUM){
+					cout << num_data[j] << " ";
+				}
+				else if(data[j]==ID){
+					cout << id_data[j] << " ";
+				}
+				else{
+					cout << a[data[j]+1] << " ";
+				}
+			}
+			printf("\"];\n");
+		}
+		else if(AST[i].type==JUDGE){
+			printf("%d [shape=diamond, label=\"");
+			for(int j=AST[i].l; j<=AST[i].r; j++){
+				if(data[j]==NUM){
+					cout << num_data[j] << " ";
+				}
+				else if(data[j]==ID){
+					cout << id_data[j]<< " ";
+				}
+				else{
+					cout << a[data[j]+1]<< " ";
+				}
+			}
+			printf("\"];\n");
+		}
+		else if(AST[i].type==INPUT){
+			printf("%d [shape=box, label=\"");
+			for(int j=AST[i].l; j<=AST[i].r; j++){
+				if(data[j]==NUM){
+					cout << num_data[j] << " ";
+				}
+				else if(data[j]==ID){
+					cout << id_data[j] << " ";
+				}
+				else{
+					cout << a[data[j]+1] << " ";
+				}
+			}
+			printf("\"];\n");
+		}
+		else if(AST[i].type==OUTPUT){
+			printf("%d [shape=box, label=\"");
+			for(int j=AST[i].l; j<=AST[i].r; j++){
+				if(data[j]==NUM){
+					cout << num_data[j] << " ";
+				}
+				else if(data[j]==ID){
+					cout << id_data[j] << " ";
+				}
+				else{
+					cout << a[data[j]+1] << " ";
+				}
+			}
+			printf("\"];\n");
+		}
+		else if(AST[i].type==FUNCTION){
+			printf("%d [shape=box, label=\"function:");
+			cout << id_data[AST[i].l+1] << " ";
+			printf("\"];\n");
+		}
+		else if(AST[i].type==ROOT){
+			printf("%d [shape=ellipse, label=\"begin\"];\n");
+		}
 	}
 }
 int main(){
 	freopen("test.in", "r", stdin);
+	freopen("graph.dot", "w", stdout);
 	scanner();
-	a[1]="AUTO";
-	a[2]="BREAK";
-	a[3]="CASE";
-	a[4]="CHAR";
-	a[5]="CONST";
-	a[6]="CONTINUE";
-	a[7]="DEFALT";
-	a[8]="DO";
-	a[9]="DOUBLE";
-	a[10]="ELSE";
-	a[11]="ENUM";
-	a[12]="EXTERN";
-	a[13]="FLOAT";
-	a[14]="FOR";
-	a[15]="GOTO";
-	a[16]="IF";
-	a[17]="INT";
-	a[18]="LONG";
-	a[19]="REGISTER";
-	a[20]="RETURN";
-	a[21]="SHORT";
-	a[22]="SIGNED";
-	a[23]="SIZEOF";
-	a[24]="STATIC";
-	a[25]="STRUCT";
-	a[26]="SWITCH";
-	a[27]="TYPEDEF";
-	a[28]="UNION";
-	a[29]="UNSIGNED";
-	a[30]="VOID";
-	a[31]="VOLATILE";
-	a[32]="WHILE";
-	a[33]="PLUS";
-	a[34]="MINUS";
-	a[35]="STAR";
-	a[36]="DIV";
-	a[37]="MOD";
-	a[38]="BIPLUS";
-	a[39]="BIMINUS";
-	a[40]="DO_EQL";
-	a[41]="NOT_EQL";
-	a[42]="GREATER";
-	a[43]="LESS";
-	a[44]="GREATER_EQL";
-	a[45]="LESS_EQL";
-	a[46]="LGC_AND";
-	a[47]="LGC_OR";
-	a[48]="LGC_NOT";
-	a[49]="AND";
-	a[50]="OR";
-	a[51]="XOR";
-	a[52]="LSHIFT";
-	a[53]="RSHIFT";
-	a[54]="ASSIGN";
-	a[55]="ASSIGN_PLUS";
-	a[56]="ASSIGN_MINUS";
-	a[57]="ASSIGN_STAR";
-	a[58]="ASSIGN_DIV";
-	a[59]="ASSIGN_MOD";
-	a[60]="COMMA";
-	a[61]="SEMI";
-	a[62]="LP";
-	a[63]="RP";
-	a[64]="LS";
-	a[65]="RS";
-	a[66]="LC";
-	a[67]="RC";
-	a[68]="QUOT";
-	a[69]="NOTE";
-	a[70]="LNOTE";
-	a[71]="RNOTE";
-	a[72]="HASH";
+	a[1]="auto";
+	a[2]="break";
+	a[3]="case";
+	a[4]="char";
+	a[5]="const";
+	a[6]="continue";
+	a[7]="defalt";
+	a[8]="do";
+	a[9]="double";
+	a[10]="else";
+	a[11]="enum";
+	a[12]="extern";
+	a[13]="float";
+	a[14]="for";
+	a[15]="goto";
+	a[16]="if";
+	a[17]="int";
+	a[18]="long";
+	a[19]="register";
+	a[20]="return";
+	a[21]="short";
+	a[22]="signed";
+	a[23]="sizeof";
+	a[24]="static";
+	a[25]="struct";
+	a[26]="switch";
+	a[27]="typedef";
+	a[28]="union";
+	a[29]="unsigned";
+	a[30]="void";
+	a[31]="volatile";
+	a[32]="while";
+	a[33]="+";
+	a[34]="-";
+	a[35]="*";
+	a[36]="/";
+	a[37]="%";
+	a[38]="++";
+	a[39]="--";
+	a[40]="==";
+	a[41]="!=";
+	a[42]=">";
+	a[43]="<";
+	a[44]=">=";
+	a[45]="<=";
+	a[46]="&&";
+	a[47]="||";
+	a[48]="!";
+	a[49]="&";
+	a[50]="|";
+	a[51]="^";
+	a[52]="<<";
+	a[53]=">>";
+	a[54]="=";
+	a[55]="+=";
+	a[56]="-=";
+	a[57]="*=";
+	a[58]="/=";
+	a[59]="%=";
+	a[60]=",";
+	a[61]=";";
+	a[62]="(";
+	a[63]=")";
+	a[64]="[";
+	a[65]="]";
+	a[66]="{";
+	a[67]="}";
+	a[68]="\\\"";
+	a[69]="//";
+	a[70]="/*";
+	a[71]="*/";
+	a[72]="#";
 	a[73]="ID";
-	a[74]="SPACE";
-	a[75]="SCANF";
-	a[76]="PRINTF";
-	a[77]="GETCHAR";
+	a[74]=" ";
+	a[75]="scanf";
+	a[76]="printf";
+	a[77]="getchar";
 	a[78]="NUM";
-	a[79]="RDIV";
-	for(int i=0; i<data.size(); i++){
-		printf("%d %d ", i, data[i]+1);
-		cout << a[data[i]+1] << endl;
-	}
+	a[79]="\\";
+	a[80]=".";
+	a[81]="\'";
+//	for(int i=0; i<data.size(); i++){
+//		printf("%d %d ", i, data[i]+1);
+//		cout << a[data[i]+1] << endl;
+//	}
 	match();
 	init();
 //	for(int i=0; i<AST.size(); i++){
@@ -936,6 +1138,9 @@ int main(){
 //		}
 //		printf("\n");
 //	}
-	dfs(0);
+	printf("digraph g {\n");
+	dfs(0, 0, 0);
+	printname();
+	printf("}\n");
 	return 0;
 }
