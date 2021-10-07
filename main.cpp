@@ -110,7 +110,7 @@ bool isoperator(char ch){
 	return (ch=='+' || ch=='-' || ch=='*' || ch=='/' || ch=='%' || ch=='=' || ch=='!' || ch=='>' || ch=='<' || ch=='&' || ch=='|' || ch=='^' || ch==',' || ch==';' || ch=='{' || ch=='}' || ch=='(' || ch==')' || ch=='[' || ch==']' || ch=='"' || ch=='/' || ch=='\\' || ch=='.' || ch=='\'');
 }
 bool isend(char ch){
-	return (ch=='\n' || ch==' ');
+	return (ch=='\n' || ch==' ' || ch=='\t');
 }
 bool istype(int a){
 	return (a==INT || a==CHAR || a==DOUBLE || a==FLOAT || a==LONG || a==SHORT);
@@ -670,6 +670,7 @@ enum nodetype{
 	NODETYPE_FOR,
 	NODETYPE_WHILE,
 	NODETYPE_IF,
+	NODETYPE_RETURN
 };
 struct node{
 	int type;
@@ -805,6 +806,17 @@ int build(int l, int r){
 		AST.push_back(command);
 		return AST.size()-1;
 	}
+	else if(data[now]==RETURN){
+		while(data[now]!=SEMI && now<=r){
+			now++;
+		}
+		node command;
+		command.type=NODETYPE_RETURN;
+		command.l=l;
+		command.r=now;
+		AST.push_back(command);
+		return AST.size()-1;
+	}
 	else{
 		while(data[now]!=SEMI && now<=r){
 			now++;
@@ -871,6 +883,9 @@ void init(){
 map<int, int> lst;
 int debug_if_tmp=0;
 void printedge(int index_a, int index_b, int sta){
+	if(AST[index_a].type==NODETYPE_RETURN){
+		return;
+	}
 	if(sta>0){
 		printf("%d -> %d [label=\"Y\"];\n",index_a, index_b);
 	}
@@ -959,6 +974,12 @@ void dfs(int last, int now, int sta){
 		}
 		lst[now]=now;
 	}
+	else if(type==NODETYPE_RETURN){
+		if(last!=now){
+			printedge(last, now, sta);
+		}
+		lst[now]=now;
+	}
 	else if(type==ROOT){
 		int siz=AST[now].son.size();
 		for(int i=0; i<siz; i++){
@@ -970,7 +991,7 @@ void dfs(int last, int now, int sta){
 void printname(){
 	for(int i=0; i<AST.size(); i++){
 		if(AST[i].type==COMMON){
-			printf("%d [shape=box, label=\"");
+			printf("%d [shape=box, label=\"", i);
 			for(int j=AST[i].l; j<=AST[i].r; j++){
 				if(data[j]==NUM){
 					cout << num_data[j] << " ";
@@ -985,7 +1006,7 @@ void printname(){
 			printf("\"];\n");
 		}
 		else if(AST[i].type==JUDGE){
-			printf("%d [shape=diamond, label=\"");
+			printf("%d [shape=diamond, label=\"", i);
 			for(int j=AST[i].l; j<=AST[i].r; j++){
 				if(data[j]==NUM){
 					cout << num_data[j] << " ";
@@ -1000,7 +1021,7 @@ void printname(){
 			printf("\"];\n");
 		}
 		else if(AST[i].type==INPUT){
-			printf("%d [shape=box, label=\"");
+			printf("%d [shape=box, label=\"", i);
 			for(int j=AST[i].l; j<=AST[i].r; j++){
 				if(data[j]==NUM){
 					cout << num_data[j] << " ";
@@ -1015,7 +1036,7 @@ void printname(){
 			printf("\"];\n");
 		}
 		else if(AST[i].type==OUTPUT){
-			printf("%d [shape=box, label=\"");
+			printf("%d [shape=box, label=\"", i);
 			for(int j=AST[i].l; j<=AST[i].r; j++){
 				if(data[j]==NUM){
 					cout << num_data[j] << " ";
@@ -1030,12 +1051,27 @@ void printname(){
 			printf("\"];\n");
 		}
 		else if(AST[i].type==FUNCTION){
-			printf("%d [shape=box, label=\"function:");
+			printf("%d [shape=box, label=\"function:", i);
 			cout << id_data[AST[i].l+1] << " ";
 			printf("\"];\n");
 		}
 		else if(AST[i].type==ROOT){
-			printf("%d [shape=ellipse, label=\"begin\"];\n");
+			printf("%d [shape=ellipse, label=\"begin\"];\n", i);
+		}
+		else if(AST[i].type==NODETYPE_RETURN){
+			printf("%d [shape=ellipse, label=\"", i);
+			for(int j=AST[i].l; j<=AST[i].r; j++){
+				if(data[j]==NUM){
+					cout << num_data[j] << " ";
+				}
+				else if(data[j]==ID){
+					cout << id_data[j] << " ";
+				}
+				else{
+					cout << a[data[j]+1] << " ";
+				}
+			}
+			printf("\"];\n");
 		}
 	}
 }
