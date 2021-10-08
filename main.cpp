@@ -362,7 +362,6 @@ void trans_opr(string str){
 	data.push_back(tmp);
 }
 void scanner(){
-	char ch;
 	string str;
 	int sta=0,note=0;
 //  sta=0 first is null
@@ -373,7 +372,14 @@ void scanner(){
 //  note=1 in // note
 //  note=2 in /* note & NOT detected '*'
 //  note=3 in /* note & detected '*'
+	string INFILE;
+	char ch;
 	while((ch=getchar())!=EOF){
+		INFILE+=ch;
+	}
+	INFILE+='\n';
+	for(int i=0; i<INFILE.size(); i++){
+		ch=INFILE[i];
 		if(note==1){
 			if(ch=='\n'){
 				note=0;
@@ -399,7 +405,8 @@ void scanner(){
 			case 0:{
 				if(ch=='#'){
 					while(ch!='\n'){
-						ch=getchar();
+						i++;
+						ch=INFILE[i];
 					}
 					sta=0;
 				}
