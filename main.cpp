@@ -670,7 +670,10 @@ enum nodetype{
 	NODETYPE_FOR,
 	NODETYPE_WHILE,
 	NODETYPE_IF,
-	NODETYPE_RETURN
+	NODETYPE_RETURN,
+	NODETYPE_ELSE,
+	FUNCTION_USING,
+	FUNCTION_DECLARE
 };
 struct node{
 	int type;
@@ -778,9 +781,16 @@ int build(int l, int r){
 		addedge(r_if_index, body_index);
 		int nxt=AST[r_if_index].r+1;
 		if(data[nxt]==ELSE){
+			node r_else;
+			r_else.type=NODETYPE_ELSE;
+			r_else.l=nxt;
+			AST.push_back(r_else);
+			int r_else_index=AST.size()-1;
 			int else_body_index=build(nxt+1, r);
-			addedge(r_if_index, else_body_index);
-			AST[r_if_index].r=AST[else_body_index].r;
+			AST[r_else_index].r=AST[else_body_index].r;
+			addedge(r_if_index, r_else_index);
+			addedge(r_else_index, else_body_index);
+			AST[r_if_index].r=AST[r_else_index].r;
 		}
 		return r_if_index;
 	}
@@ -829,6 +839,7 @@ int build(int l, int r){
 		return AST.size()-1;
 	}
 }
+map<string, int> Function_set;
 void init(){
 	node root;
 	root.type=ROOT;
@@ -847,12 +858,15 @@ void init(){
 				i=r;
 			}
 			else{
-				if(data[link[i+2]+1]==SEMI){
+				if(data[i+3]==NUM){
 					int body_index=build(i, link[i+2]+1);
 					addedge(0, body_index);
 					i=link[i+2]+1;
 				}
 				else{
+					if(Function_set.count(id_data[i+1])>0){
+						AST[Function_set[id_data[i+1]]].type=FUNCTION_DECLARE;
+					}
 					node fun;
 					fun.type=FUNCTION;
 					fun.l=i;
@@ -862,11 +876,15 @@ void init(){
 					int body_index=build(link[i+2]+1, data.size()-1);
 					AST[fun_index].r=AST[body_index].r;
 					addedge(fun_index, body_index);
+					Function_set[id_data[i+1]]=fun_index;
 					i=AST[fun_index].r;
 				}
 			}
 		}
 		else if(data[i]==VOID){
+			if(Function_set.count(id_data[i+1])>0){
+				AST[Function_set[id_data[i+1]]].type=FUNCTION_DECLARE;
+			}
 			node fun;
 			fun.type=FUNCTION;
 			fun.l=i;
@@ -876,13 +894,31 @@ void init(){
 			int body_index=build(link[i+2]+1, data.size()-1);
 			AST[fun_index].r=AST[body_index].r;
 			addedge(fun_index, body_index);
+			Function_set[id_data[i+1]]=fun_index;
 			i=AST[fun_index].r;
 		}
 	}
 }
+void Function_set_init(){
+//	for(int i=0; i<AST[0].son.size(); i++){
+//		if(AST[AST[0].son[i]].type==FUNCTION){
+//			Function_set[id_data[AST[AST[0].son[i]].l+1]]=AST[0].son[i];
+//		}
+//	}
+	for(int i=0; i<AST.size(); i++){
+		if(AST[i].type==COMMON && Function_set.count(id_data[AST[i].l])>0){
+			AST[i].type=FUNCTION_USING;
+		}
+	}
+}
+map<int, pair<int, int>> if_lst;
 map<int, int> lst;
-int debug_if_tmp=0;
 void printedge(int index_a, int index_b, int sta){
+	if(AST[index_a].type==NODETYPE_IF){
+		printedge(if_lst[index_a].first, index_b, (if_lst[index_a].first==AST[index_a].son[0]) ? 1 : 0);
+		printedge(if_lst[index_a].second, index_b, (if_lst[index_a].second==AST[index_a].son[0]) ? -1 : 0);
+		return;
+	}
 	if(AST[index_a].type==NODETYPE_RETURN){
 		return;
 	}
@@ -894,19 +930,6 @@ void printedge(int index_a, int index_b, int sta){
 	}
 	else{
 		printf("%d -> %d;\n",index_a, index_b);
-	}
-	if(debug_if_tmp){
-		index_a=debug_if_tmp;
-			if(sta>0){
-			printf("%d -> %d [label=\"Y\"];\n",index_a, index_b);
-		}
-		else if(sta<0){
-			printf("%d -> %d [label=\"N\"];\n",index_a, index_b);
-		}
-		else{
-			printf("%d -> %d;\n",index_a, index_b);
-		}
-		debug_if_tmp=0;
 	}
 }
 void dfs(int last, int now, int sta){
@@ -930,8 +953,16 @@ void dfs(int last, int now, int sta){
 		dfs(AST[now].son[0], AST[now].son[1], 1);
 		if(AST[now].son.size()==3){
 			dfs(AST[now].son[0], AST[now].son[2], -1);
+			if_lst[now]=make_pair(lst[AST[now].son[1]], lst[AST[now].son[2]]);
 		}
-		lst[now]=lst[AST[now].son[1]];
+		else{
+			if_lst[now]=make_pair(lst[AST[now].son[1]], AST[now].son[0]);
+		}
+		lst[now]=now;
+	}
+	else if(type==NODETYPE_ELSE){
+		dfs(last, AST[now].son[0], sta);
+		lst[now]=lst[AST[now].son[0]];
 	}
 	else if(type==COMPLEX){
 		int siz=AST[now].son.size();
@@ -944,15 +975,8 @@ void dfs(int last, int now, int sta){
 				nowsta=-1;
 			}
 			else if(typ==NODETYPE_IF){
-				if(AST[AST[now].son[i]].son.size()==3){
-					pre=lst[AST[now].son[i]];
-					nowsta=0;
-					debug_if_tmp=lst[AST[AST[now].son[i]].son[2]];
-				}
-				else{
-					pre=lst[AST[now].son[i]];
-					nowsta=-1;
-				}
+				pre=AST[now].son[i];
+				nowsta=0;
 			}
 			else{
 				pre=lst[AST[now].son[i]];
@@ -962,7 +986,6 @@ void dfs(int last, int now, int sta){
 		lst[now]=lst[AST[now].son[siz-1]];
 	}
 	else if(type==FUNCTION){
-		printedge(last, now, sta);
 		dfs(now, AST[now].son[0], 0);
 	}
 	else if(type==JUDGE){
@@ -980,17 +1003,26 @@ void dfs(int last, int now, int sta){
 		}
 		lst[now]=now;
 	}
-	else if(type==ROOT){
-		int siz=AST[now].son.size();
-		for(int i=0; i<siz; i++){
-			dfs(0, AST[now].son[i], 0);
-		}
+	else if(type==FUNCTION_USING){
+		int index=Function_set[id_data[AST[now].l]];
+		lst[now]=lst[index];
 	}
+	else if(type==FUNCTION_DECLARE){
+		return;
+	}
+//	else if(type==ROOT){
+//		int siz=AST[now].son.size();
+//		for(int i=0; i<siz; i++){
+//			dfs(0, AST[now].son[i], 0);
+//		}
+//	}
 }
-
 void printname(){
 	for(int i=0; i<AST.size(); i++){
 		if(AST[i].type==COMMON){
+			if(AST[i].l==AST[i].r){
+				continue;
+			}
 			printf("%d [shape=box, label=\"", i);
 			for(int j=AST[i].l; j<=AST[i].r; j++){
 				if(data[j]==NUM){
@@ -1073,12 +1105,12 @@ void printname(){
 			}
 			printf("\"];\n");
 		}
+		else if(AST[i].type==FUNCTION_DECLARE){
+			continue;
+		}
 	}
 }
-int main(){
-	freopen("test.in", "r", stdin);
-	freopen("graph.dot", "w", stdout);
-	scanner();
+void initstr(){
 	a[1]="auto";
 	a[2]="break";
 	a[3]="case";
@@ -1160,6 +1192,12 @@ int main(){
 	a[79]="\\";
 	a[80]=".";
 	a[81]="\'";
+}
+int main(){
+	freopen("test.in", "r", stdin);
+	freopen("graph.dot", "w", stdout);
+	initstr();
+	scanner();
 //	for(int i=0; i<data.size(); i++){
 //		printf("%d %d ", i, data[i]+1);
 //		cout << a[data[i]+1] << endl;
@@ -1174,8 +1212,15 @@ int main(){
 //		}
 //		printf("\n");
 //	}
+	Function_set_init();
 	printf("digraph g {\n");
-	dfs(0, 0, 0);
+	int main_index=Function_set["main"];
+	printedge(0, main_index, 0);
+	for(int i=0; i<AST[0].son.size(); i++){
+		if(AST[AST[0].son[i]].type==FUNCTION){
+			dfs(AST[0].son[i], AST[0].son[i], 0);
+		}
+	}
 	printname();
 	printf("}\n");
 	return 0;
